@@ -1,0 +1,89 @@
+name: .NET Core
+on:
+  push:
+    tags:
+      - '**'
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: [self-hosted, Windows]
+
+    steps:
+    - uses: actions/checkout@v2
+    - run: git fetch --prune --unshallow
+
+    - name: Dump globals
+      run: |
+        echo "github=$GLOBAL_GITHUB"
+        echo "job=$GLOBAL_JOB"
+        echo "steps=$GLOBAL_STEPS"
+      env:
+        GLOBAL_GITHUB: ${{ toJson(github) }}
+        GLOBAL_JOB: ${{ toJson(job) }}
+        GLOBAL_STEPS: ${{ toJson(steps) }}
+
+    - name: Install GitVersion
+      uses: gittools/actions/gitversion/setup@v0.9.7
+      with:
+          versionSpec: '5.5.0'
+
+    - name: Use GitVersion
+      id: gitversion # step id used as reference for output values
+      uses: gittools/actions/gitversion/execute@v0.9.7
+
+    - name: Setup SonarScanner
+      run: dotnet tool install --tool-path tools dotnet-sonarscanner
+
+    - name: Setup ReportGenerator
+      run: dotnet tool install --tool-path tools dotnet-reportgenerator-globaltool
+
+    - name: SonarScanner begin
+      run: tools/dotnet-sonarscanner begin /k:"SqlBackupTools" /o:"lucca" /v:${{ env.GitVersion_FullSemVer }} /d:sonar.login=${{ secrets.SONAR_TOKEN }} /d:sonar.host.url="https://sonarcloud.io/" /d:sonar.coverageReportPaths="./sonarCoverage/SonarQube.xml"
+
+    - name: Test
+      run: dotnet test --configuration Release /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory:./coverage
+      env:
+        TEST_SQL_INSTANCE: ${{ secrets.TEST_SQL_INSTANCE }}
+        TEST_SQL_BACKUP_FOLDER: ${{ secrets.TEST_SQL_BACKUP_FOLDER }}
+
+    - name: Merge coverages
+      run: tools/reportgenerator -reports:./coverage/*/*.xml -targetdir:./sonarCoverage -reporttypes:SonarQube
+
+    - name: SonarScanner end
+      run: tools/dotnet-sonarscanner end /d:sonar.login=${{ secrets.SONAR_TOKEN }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Pack
+      if: startsWith(github.ref, 'refs/tags/')
+      run: dotnet publish src\SqlBackupTools\SqlBackupTools.csproj -c Release -o published -r win10-x64 /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:VersionPrefix="${{ env.GitVersion_SemVer }}" /p:AssemblyVersion="${{ env.GitVersion_AssemblySemVer }}"
+
+    - name: Zip
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        Remove-Item "artifact" -Recurse -ErrorAction Ignore
+        New-Item -Name "artifact" -ItemType Directory
+        Compress-Archive -Path published\* -DestinationPath artifact\SqlBackupTools-${{ env.GitVersion_SemVer }}.zip
+      shell: powershell
+
+    - name: Get release
+      if: startsWith(github.ref, 'refs/tags/')
+      id: get_release
+      uses: bruceadams/get-release@v1.2.2
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+
+    - name: Upload Release Asset
+      if: startsWith(github.ref, 'refs/tags/')
+      id: upload-release-asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release.outputs.upload_url }}
+        asset_path: artifact\SqlBackupTools-${{ env.GitVersion_SemVer }}.zip
+        asset_name: SqlBackupTools-${{ env.GitVersion_SemVer }}.zip
+        asset_content_type: application/zip
