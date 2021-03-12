@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Data;
+using System.Text;
 using System.Threading.Tasks;
 using Dapper;
 using Microsoft.Data.SqlClient;
@@ -26,29 +27,29 @@ namespace SqlBackupTools.Restore.Brentozar
                     if (_state.RestoreCommand.IgnoreAlreadyPresentInMsdb)
                     {
                         await _sqlConnection.ExecuteAsync("[dbo].[sp_DatabaseRestore]", new
-                            {
-                                Database = item.Name,
-                                BackupPathFull = item.Full?.FullName,
-                                BackupPathDiff = item.Diff?.FullName,
-                                BackupPathLog = item.Log?.FullName,
-                                ContinueLogs = _state.RestoreCommand.ContinueLogs  ? 1 : 0,
-                                RunRecovery = _state.RestoreCommand.RunRecovery ? 1 : 0,
-                                IgnoreAlreadyPresentInMsdb = 1
-                            },
+                        {
+                            Database = item.Name,
+                            BackupPathFull = item.Full?.FullName,
+                            BackupPathDiff = item.Diff?.FullName,
+                            BackupPathLog = item.Log?.FullName,
+                            ContinueLogs = _state.RestoreCommand.ContinueLogs ? 1 : 0,
+                            RunRecovery = _state.RestoreCommand.RunRecovery ? 1 : 0,
+                            IgnoreAlreadyPresentInMsdb = 1
+                        },
                             commandTimeout: _state.RestoreCommand.Timeout,
                             commandType: CommandType.StoredProcedure);
                     }
                     else
                     {
                         await _sqlConnection.ExecuteAsync("[dbo].[sp_DatabaseRestore]", new
-                            {
-                                Database = item.Name,
-                                BackupPathFull = item.Full?.FullName,
-                                BackupPathDiff = item.Diff?.FullName,
-                                BackupPathLog = item.Log?.FullName,
-                                ContinueLogs = _state.RestoreCommand.ContinueLogs ? 1 : 0,
-                                RunRecovery = _state.RestoreCommand.RunRecovery ? 1 : 0
-                            },
+                        {
+                            Database = item.Name,
+                            BackupPathFull = item.Full?.FullName,
+                            BackupPathDiff = item.Diff?.FullName,
+                            BackupPathLog = item.Log?.FullName,
+                            ContinueLogs = _state.RestoreCommand.ContinueLogs ? 1 : 0,
+                            RunRecovery = _state.RestoreCommand.RunRecovery ? 1 : 0
+                        },
                             commandTimeout: _state.RestoreCommand.Timeout,
                             commandType: CommandType.StoredProcedure);
                     }
@@ -59,14 +60,14 @@ namespace SqlBackupTools.Restore.Brentozar
                     _state.Loggger.Information($"[{item.Name}] : retry in full, error {sqle.Number}");
                     // previous restore ko, retry
                     await _sqlConnection.ExecuteAsync("[dbo].[sp_DatabaseRestore]", new
-                        {
-                            Database = item.Name,
-                            BackupPathFull = item.Full?.FullName,
-                            BackupPathDiff = item.Diff?.FullName,
-                            BackupPathLog = item.Log?.FullName,
-                            ContinueLogs = false,
-                            RunRecovery = _state.RestoreCommand.RunRecovery ? 1 : 0
-                        },
+                    {
+                        Database = item.Name,
+                        BackupPathFull = item.Full?.FullName,
+                        BackupPathDiff = item.Diff?.FullName,
+                        BackupPathLog = item.Log?.FullName,
+                        ContinueLogs = false,
+                        RunRecovery = _state.RestoreCommand.RunRecovery ? 1 : 0
+                    },
                         commandTimeout: _state.RestoreCommand.Timeout,
                         commandType: CommandType.StoredProcedure);
 
@@ -86,17 +87,37 @@ namespace SqlBackupTools.Restore.Brentozar
             return null;
         }
 
+        public async Task<Exception> RunRecoveryAsync(RestoreItem item)
+        {
+            var sb = new StringBuilder();
+            sb.Append("RESTORE DATABASE [");
+            sb.Append(item.Name);
+            sb.Append("] WITH RECOVERY'");
+            try
+            {
+                await using var sqlConnection = _state.RestoreCommand.CreateConnectionMars();
+                _state.Loggger.Debug("running RECOVERY : " + item.Name);
+                await sqlConnection.ExecuteAsync(sb.ToString(), commandTimeout: _state.RestoreCommand.Timeout);
+            }
+            catch (Exception e)
+            {
+                _state.Loggger.Debug(e, item.Name + " : Error while running RECOVERY");
+                return e;
+            }
+            return null;
+        }
+
         public async Task<Exception> RestoreFullAsync(RestoreItem item)
         {
             try
             {
                 await _sqlConnection.ExecuteAsync("[dbo].[sp_DatabaseRestore]", new
-                    {
-                        Database = item.Name,
-                        BackupPathFull = item.Full?.FullName,
-                        ContinueLogs = 0,
-                        RunRecovery = _state.RestoreCommand.RunRecovery ? 1 : 0
-                    },
+                {
+                    Database = item.Name,
+                    BackupPathFull = item.Full?.FullName,
+                    ContinueLogs = 0,
+                    RunRecovery = _state.RestoreCommand.RunRecovery ? 1 : 0
+                },
                     commandTimeout: _state.RestoreCommand.Timeout,
                     commandType: CommandType.StoredProcedure);
             }

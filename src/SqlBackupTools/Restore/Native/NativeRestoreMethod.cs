@@ -30,6 +30,26 @@ namespace SqlBackupTools.Restore.Native
             return InternalFullDiffLogAsync(item, startFromFull, restoreLogs: true);
         }
 
+        public async Task<Exception> RunRecoveryAsync(RestoreItem item)
+        {
+            var sb = new StringBuilder();
+            sb.Append("RESTORE DATABASE [");
+            sb.Append(item.Name);
+            sb.Append("] WITH RECOVERY'");
+            try
+            {
+                await using var sqlConnection = _state.RestoreCommand.CreateConnectionMars();
+                _state.Loggger.Debug("running RECOVERY : " + item.Name);
+                await sqlConnection.ExecuteAsync(sb.ToString(), commandTimeout: _state.RestoreCommand.Timeout);
+            }
+            catch (Exception e)
+            {
+                _state.Loggger.Debug(e, item.Name + " : Error while running RECOVERY");
+                return e;
+            }
+            return null;
+        }
+
         private async Task<Exception> InternalFullDiffLogAsync(RestoreItem item, bool startFromFull, bool restoreLogs)
         {
             await using var sqlConnection = _state.RestoreCommand.CreateConnectionMars();
@@ -189,12 +209,10 @@ namespace SqlBackupTools.Restore.Native
                     {
                         _state.Loggger.Debug("restoring LOG : " + currentLogFile.FullName);
 
-                        bool runRecovery = backupLogsToRestore.Count == 0 && _state.RestoreCommand.RunRecovery;
-
                         switch (retryStrategy)
                         {
                             case RetryStrategy.None:
-                                cmdLog = RestoreLogCommand(item, currentLogFile, runRecovery);
+                                cmdLog = RestoreLogCommand(item, currentLogFile);
                                 await sqlConnection.ExecuteAsync(cmdLog, commandTimeout: _state.RestoreCommand.Timeout);
                                 break;
                             case RetryStrategy.ExtractHeaders:
@@ -204,7 +222,7 @@ namespace SqlBackupTools.Restore.Native
 
                                 foreach (var info in infos.OrderBy(i => int.Parse(i.Position, NumberFormatInfo.InvariantInfo)))
                                 {
-                                    cmdLog = RestoreLogCommand(item, currentLogFile, runRecovery, int.Parse(info.Position, NumberFormatInfo.InvariantInfo));
+                                    cmdLog = RestoreLogCommand(item, currentLogFile, int.Parse(info.Position, NumberFormatInfo.InvariantInfo));
                                     await sqlConnection.ExecuteAsync(cmdLog, commandTimeout: _state.RestoreCommand.Timeout);
                                 }
                                 break;
@@ -264,11 +282,11 @@ namespace SqlBackupTools.Restore.Native
             }
         }
 
-        private async Task<string> RestoreFullSqlCommandAsync(RestoreItem item, bool modeFileList, SqlConnection sqlConnection, FileInfo fullFile)
+        private async Task<string> RestoreFullSqlCommandAsync(RestoreItem item, bool modeFileList,
+            SqlConnection sqlConnection, FileInfo fullFile)
         {
             var dataPath = Path.Combine(_state.ServerInfos.DataPath, item.Name + ".mdf");
             var logPath = Path.Combine(_state.ServerInfos.LogPath, item.Name + "_log.ldf");
-            var fullRecovery = _state.RestoreCommand.RunRecovery ? "RECOVERY" : "NORECOVERY";
 
             string logicalData = item.Name;
             string logicalLog = $"{item.Name}_Log";
@@ -286,8 +304,7 @@ namespace SqlBackupTools.Restore.Native
             sb.Append(item.Name);
             sb.Append("] FROM DISK = N'");
             sb.Append(fullFile.FullName);
-            sb.Append("' WITH ");
-            sb.Append(fullRecovery);
+            sb.Append("' WITH NORECOVERY");
             sb.Append(", REPLACE, MOVE '");
             sb.Append(logicalData);
             sb.Append("' TO '");
@@ -314,7 +331,7 @@ namespace SqlBackupTools.Restore.Native
             return sb.ToString();
         }
 
-        private string RestoreLogCommand(RestoreItem item, FileInfo lastLog, bool recovery, int fileId = 1)
+        private string RestoreLogCommand(RestoreItem item, FileInfo lastLog, int fileId = 1)
         {
             var sb = new StringBuilder();
             sb.Append("RESTORE LOG [");
@@ -326,7 +343,7 @@ namespace SqlBackupTools.Restore.Native
             sb.Append(fileId);
             sb.Append(", ");
 
-            sb.Append(recovery ? "RECOVERY" : "NORECOVERY");
+            sb.Append("NORECOVERY");
 
             if (_state.RestoreCommand.MaxTransferSize.HasValue)
             {
