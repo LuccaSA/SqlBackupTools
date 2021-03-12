@@ -79,5 +79,9 @@ namespace SqlBackupTools
     {
         [Option("ignoreDatabases", HelpText = "Exclude specific databases from drop command")]
         public IEnumerable<string> DuplicatesIgnored { get; set; }
+
+
+        [Option("force", HelpText = "Avoid confirmation before database drop")]
+        public bool Force { get; set; }
     }
 }

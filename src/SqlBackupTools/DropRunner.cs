@@ -33,19 +33,26 @@ namespace SqlBackupTools
                 return;
             }
 
-            await Console.Out.WriteLineAsync($"Are you sure to drop all {databases.Count} databases on server {serverInfos.ServerName}?  Please type the server name");
-            var read = await Console.In.ReadLineAsync();
-
-            if(!string.Equals(read,serverInfos.ServerName, StringComparison.OrdinalIgnoreCase))
+            if (!drop.Force)
             {
-                logger.Error("Drop operation aborded, bad confimation input");
-                return;
+                await Console.Out.WriteLineAsync($"Are you sure to drop all {databases.Count} databases on server {serverInfos.ServerName}?  Please type the server name");
+                var read = await Console.In.ReadLineAsync();
+                if (!string.Equals(read, serverInfos.ServerName, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.Error("Drop operation aborded, bad confimation input");
+                    return;
+                }
+                else
+                {
+                    logger.Information("Drop confirmation for " + read);
+                }
             }
             else
             {
-                logger.Information("Drop confirmation for "+ read);
+                logger.Warning("Drop mode forced ");
             }
-            Stopwatch sw = Stopwatch.StartNew();
+
+            var sw = Stopwatch.StartNew();
             var po = new ParallelizeOption
             {
                 FailMode = Fail.Smart,
@@ -70,7 +77,7 @@ namespace SqlBackupTools
                         try
                         {
                             await connection.ExecuteAsync($"ALTER DATABASE [{item.Name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE", commandTimeout: _timeout);
-                            await connection.ExecuteAsync($"DROP DATABASE [{item.Name}]",   commandTimeout: _timeout);
+                            await connection.ExecuteAsync($"DROP DATABASE [{item.Name}]", commandTimeout: _timeout);
                             await connection.ExecuteAsync($"EXEC msdb.dbo.sp_delete_database_backuphistory @database_name = N'{item.Name}'", commandTimeout: _timeout);
                         }
                         catch (Exception e)
