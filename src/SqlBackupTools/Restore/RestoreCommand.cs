@@ -9,6 +9,9 @@ namespace SqlBackupTools
     [Verb("restore", HelpText = "Restore databases")]
     public class RestoreCommand : GeneralCommandInfos
     {
+        [Option('f', "folder", Required = true, HelpText = "Root backup folder")]
+        public IEnumerable<DirectoryInfo> BackupFolders { get; set; }
+        
         [Option('b', "brentozar", HelpText = "Brentozar mode")]
         public bool Brentozar { get; set; }
 
@@ -108,18 +111,5 @@ namespace SqlBackupTools
             }
         }
 
-        [Option("smtp", HelpText = "Smtp server to send email")]
-        public string Smtp { get; set; }
-        [Option("email", HelpText = "Email address to send email")]
-        public string Email { get; set; }
-
-        [Option("slackSecret", HelpText = "Slack token")]
-        public string SlackSecret { get; internal set; }
-
-        [Option("slackChannel", HelpText = "Slack channel")]
-        public string SlackChannel { get; internal set; }
-
-        [Option("slackOnlyOnError", HelpText = "Send slack message only on warning or error")]
-        public bool SlackOnlyOnError { get; set; }
     }
 }

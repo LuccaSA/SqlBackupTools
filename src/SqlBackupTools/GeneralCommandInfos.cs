@@ -6,19 +6,16 @@ using Microsoft.Data.SqlClient;
 
 namespace SqlBackupTools
 {
-    public class GeneralCommandInfos
+    public abstract class GeneralCommandInfos
     {
-        public GeneralCommandInfos()
+        protected GeneralCommandInfos()
         {
             Threads = Environment.ProcessorCount;
         }
 
         [Option('h', "hostname", Required = true, HelpText = "SQL Server hostname")]
         public string Hostname { get; set; }
-
-        [Option('f', "folder", Required = true, HelpText = "Root backup folder")]
-        public IEnumerable<DirectoryInfo> BackupFolders { get; set; }
-
+        
         [Option('l', "login", HelpText = "SQL Server login")]
         public string Login { get; set; }
 
@@ -36,6 +33,24 @@ namespace SqlBackupTools
 
         [Option('t', "threads", HelpText = "Parallel threads")]
         public int Threads { get; set; }
+
+
+        [Option("smtp", HelpText = "Smtp server to send email")]
+        public string Smtp { get; set; }
+        [Option("email", HelpText = "Email address to send email")]
+        public string Email { get; set; }
+
+        [Option("slackSecret", HelpText = "Slack token")]
+        public string SlackSecret { get; internal set; }
+
+        [Option("slackChannel", HelpText = "Slack channel")]
+        public string SlackChannel { get; internal set; }
+
+        [Option("slackOnlyOnError", HelpText = "Send slack message only on warning or error")]
+        public bool SlackOnlyOnError { get; set; }
+
+        [Option("slackTitle", HelpText = "Slack channel")]
+        public string SlackTitle { get; internal set; }
 
         public virtual void Validate()
         {

@@ -56,7 +56,7 @@ namespace SqlBackupTools.Restore
             state.LogFinished(report);
 
             var slack = new SlackSender(new SlackClient(logger));
-            await slack.ReportAsync(report, state.RestoreCommand.SlackChannel, state.RestoreCommand.SlackSecret, state.RestoreCommand.SlackOnlyOnError);
+            await slack.ReportAsync(report, state.RestoreCommand.SlackChannel, state.RestoreCommand.SlackSecret, state.RestoreCommand.SlackOnlyOnError, state.RestoreCommand.SlackTitle);
 
             await report.SendMailAsync(state.RestoreCommand.Email, state.RestoreCommand.Smtp, cancellationToken);
 

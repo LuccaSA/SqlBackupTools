@@ -17,7 +17,7 @@ namespace SqlBackupTools.Notification
         }
 
         public async Task ReportAsync(ReportState state, string slackChannel, string slackSecret,
-            bool restoreCommandSlackOnlyOnError)
+            bool restoreCommandSlackOnlyOnError, string slackTitle)
         {
             if (string.IsNullOrWhiteSpace(slackChannel) ||
                 string.IsNullOrWhiteSpace(slackSecret))
@@ -35,7 +35,7 @@ namespace SqlBackupTools.Notification
             var msgRoot = new SlackMessage
             {
                 Channel = slackChannel,
-                Text = $"{shell} *{state.Info.ServerName}* : {state.Restored.Count}/{state.TotalProcessed} db in {state.TotalTime.HumanizedTimeSpan()}",
+                Text = $"{shell} *{(String.IsNullOrWhiteSpace(slackTitle) ? state.Info.ServerName : slackTitle)}* : {state.Restored.Count}/{state.TotalProcessed} db in {state.TotalTime.HumanizedTimeSpan()}",
             };
 
             var response = await _slackClient.SendSlackMessageAsync(msgRoot, slackSecret);
