@@ -98,6 +98,17 @@ namespace SqlBackupTools.Restore
 
             try
             {
+                if (restoreCommand.RunRecovery)
+                {
+                    var recoveryException = await restoreMethod.RunRecoveryAsync(item);
+                    if (recoveryException != null)
+                    {
+                        state.ExceptionBackupFull.Add((recoveryException, item));
+                        item.SetError(recoveryException);
+                        throw recoveryException;
+                    }
+                }
+
                 Exception scriptException = null;
                 if (restoreCommand.RunRecovery)
                 {
@@ -113,13 +124,21 @@ namespace SqlBackupTools.Restore
 
                 if (restoreCommand.IsUncheckedModeEnable)
                 {
-                    // overwrite destination if exists
-                    var target = Path.Combine(restoreCommand.Checked.FullName, item.Name);
-                    if (Directory.Exists(target))
+                    try
                     {
-                        Directory.Delete(target, true);
+                        // overwrite destination if exists
+                        var target = Path.Combine(restoreCommand.Checked.FullName, item.Name);
+                        if (Directory.Exists(target))
+                        {
+                            Directory.Delete(target, true);
+                        }
+                        item.BaseDirectoryInfo.MoveTo(target);
                     }
-                    item.BaseDirectoryInfo.MoveTo(target);
+                    catch (Exception e)
+                    {
+                        state.Loggger.Error(e, $"Error moving {item.Name}");
+                        return item;
+                    }
                 }
 
                 if (scriptException != null)
@@ -129,9 +148,7 @@ namespace SqlBackupTools.Restore
             }
             catch (Exception e)
             {
-                state.Loggger.Error(e, "error moving folder");
                 item.SetError(e);
-                state.Loggger.Error(e, $"Error moving {item.Name}");
                 return item;
             }
 
@@ -185,7 +202,7 @@ namespace SqlBackupTools.Restore
             try
             {
                 var scripts = LoadScripts(state.RestoreCommand);
-                state.Loggger.Debug("Applying " + scripts.Count + " sql scripts"); 
+                state.Loggger.Debug("Applying " + scripts.Count + " sql scripts");
                 foreach (var script in scripts)
                 {
                     await sqlConnection.ExecuteAsync(script, commandTimeout: 180);
