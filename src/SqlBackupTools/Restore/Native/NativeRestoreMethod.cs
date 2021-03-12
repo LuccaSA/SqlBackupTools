@@ -35,7 +35,7 @@ namespace SqlBackupTools.Restore.Native
             var sb = new StringBuilder();
             sb.Append("RESTORE DATABASE [");
             sb.Append(item.Name);
-            sb.Append("] WITH RECOVERY'");
+            sb.Append("] WITH RECOVERY");
             try
             {
                 await using var sqlConnection = _state.RestoreCommand.CreateConnectionMars();
