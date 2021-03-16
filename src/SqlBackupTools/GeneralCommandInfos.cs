@@ -49,7 +49,7 @@ namespace SqlBackupTools
         [Option("slackOnlyOnError", HelpText = "Send slack message only on warning or error")]
         public bool SlackOnlyOnError { get; set; }
 
-        [Option("slackTitle", HelpText = "Slack channel")]
+        [Option("slackTitle", HelpText = "Slack message title")]
         public string SlackTitle { get; internal set; }
 
         public virtual void Validate()

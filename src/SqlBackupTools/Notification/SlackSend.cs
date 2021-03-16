@@ -31,11 +31,12 @@ namespace SqlBackupTools.Notification
             }
 
             string shell = SlackShell(state);
+            var bucket = GetBucketName(state, slackTitle);
 
             var msgRoot = new SlackMessage
             {
                 Channel = slackChannel,
-                Text = $"{shell} *{(String.IsNullOrWhiteSpace(slackTitle) ? state.Info.ServerName : slackTitle)}* : {state.Restored.Count}/{state.TotalProcessed} db in {state.TotalTime.HumanizedTimeSpan()}",
+                Text = $"{shell} *{bucket}* : {state.Restored.Count}/{state.TotalProcessed} db in {state.TotalTime.HumanizedTimeSpan()}",
             };
 
             var response = await _slackClient.SendSlackMessageAsync(msgRoot, slackSecret);
@@ -43,7 +44,7 @@ namespace SqlBackupTools.Notification
             var subMsg = new SlackMessage
             {
                 Channel = slackChannel,
-                Text = $"Details for {state.Info.ServerName ?? Environment.MachineName}",
+                Text = $"Details for {bucket}",
                 ThreadTs = response.Ts,
                 Attachments = new List<Attachment>()
             };
@@ -212,6 +213,25 @@ namespace SqlBackupTools.Notification
             }
 
             await _slackClient.SendSlackMessageAsync(subMsg, slackSecret);
+        }
+
+        private static string GetBucketName(ReportState state, string slackTitle)
+        {
+            string bucket;
+            if (!string.IsNullOrWhiteSpace(slackTitle))
+            {
+                bucket = slackTitle;
+            }
+            else if (!string.IsNullOrWhiteSpace(state.Info.ServerName))
+            {
+                bucket = state.Info.ServerName;
+            }
+            else
+            {
+                bucket = Environment.MachineName;
+            }
+
+            return bucket;
         }
 
         private static string SlackShell(ReportState state)
