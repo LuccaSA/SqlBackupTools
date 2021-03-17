@@ -13,7 +13,7 @@ namespace SqlBackupTools
         [Option('c', "cleanedFolder", Required = true, HelpText = "Root folder to move old database backups into")]
         public DirectoryInfo CleanedFolder { get; set; }
 
-        [Option(  "force", Required = true, HelpText = "force the clean operation")]
+        [Option(  "force", HelpText = "force the clean operation")]
         public bool Force { get; set; }
     }
 }
