@@ -28,12 +28,12 @@ namespace SqlBackupTools
             // move folders for unreferenced databases
             var toMove = actualDirectories.Where(backup => !actualDatabases.Contains(backup.Name)).ToList();
 
-            if (toMove.Count != 0 && toMove.Count == actualDirectories.Count)
+            if (!cleanInfos.Force && toMove.Count != 0 && toMove.Count == actualDirectories.Count)
             {
                 throw new DangerousOperationException("You probably try to clean the wrong folder : 100% of folder will be moved");
             }
 
-            if (toMove.Count != 0 && toMove.Count >= actualDirectories.Count / (double)10)
+            if (!cleanInfos.Force && toMove.Count != 0 && toMove.Count >= actualDirectories.Count / (double)10)
             {
                 throw new DangerousOperationException("You probably try to clean the wrong folder : more than 10% of folder will be moved");
             }
