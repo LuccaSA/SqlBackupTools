@@ -94,9 +94,11 @@ namespace SqlBackupTools.Restore.Native
 
                     break;
                 }
-                catch (SqlException sqle) when (sqle.Number == 3101)
+                catch (SqlException sqle)
+                    when (sqle.Number == 3101 || //Exclusive access could not be obtained because the database is in use.
+                          sqle.Number == 3201) // Cannot open backup device.
                 {
-                    //Exclusive access could not be obtained because the database is in use.
+                    
                     // RESTORE DATABASE is terminating abnormally.
                     item.StatsDropped++;
                     _state.Loggger.Debug(sqle, item.Name + " : Error on first attempt, retrying from scratch");
