@@ -94,19 +94,18 @@ namespace SqlBackupTools.Restore.Native
 
                     break;
                 }
-                catch (SqlException sqle)
-                    when (sqle.Number == 3101 || //Exclusive access could not be obtained because the database is in use.
-                          sqle.Number == 3201) // Cannot open backup device.
+                catch (SqlException sqle) when (sqle.IsRecoverable())
                 {
-                    
                     // RESTORE DATABASE is terminating abnormally.
                     item.StatsDropped++;
                     _state.Loggger.Debug(sqle, item.Name + " : Error on first attempt, retrying from scratch");
                     forceRestoreFull = true;
+                    bool singleUserMode = false;
                     try
                     {
                         if (_state.ActualDbs.TryGetValue(item.Name, out var databaseInfo) && databaseInfo.State != DatabaseState.RESTORING)
                         {
+                            singleUserMode = true;
                             await sqlConnection.ExecuteAsync($"ALTER DATABASE [{item.Name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE", commandTimeout: _state.RestoreCommand.Timeout);
                         }
                         await sqlConnection.ExecuteAsync($"DROP DATABASE [{item.Name}]", commandTimeout: _state.RestoreCommand.Timeout);
@@ -114,23 +113,7 @@ namespace SqlBackupTools.Restore.Native
                     }
                     catch (Exception e)
                     {
-                        _state.Loggger.Error(e, "Error while trying to drop db in SINGLE_USER mode");
-                        return e;
-                    }
-                }
-                catch (SqlException sqle) when (sqle.IsRecoverable())
-                {
-                    item.StatsDropped++;
-                    _state.Loggger.Debug(sqle, item.Name + " : Error on first attempt, retrying from scratch");
-                    forceRestoreFull = true;
-                    try
-                    {
-                        await sqlConnection.ExecuteAsync($"DROP DATABASE [{item.Name}]", commandTimeout: _state.RestoreCommand.Timeout);
-                        await sqlConnection.ExecuteAsync($"EXEC msdb.dbo.sp_delete_database_backuphistory @database_name = N'{item.Name}'", commandTimeout: _state.RestoreCommand.Timeout);
-                    }
-                    catch (Exception e)
-                    {
-                        _state.Loggger.Error(e, "Error while trying to drop db");
+                        _state.Loggger.Error(e, $"Error while trying to drop db{(singleUserMode ? " in SINGLE_USER mode" : string.Empty)}");
                         return e;
                     }
                 }
