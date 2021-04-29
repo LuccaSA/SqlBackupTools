@@ -61,30 +61,21 @@ namespace SqlBackupTools
 
             int counter = 0;
             int total = databases.Count;
+
+            var state = databases.ToDictionary(i => i.Name);
+
             await databases
                 .ParallelizeAsync(async (item, cancel) =>
                 {
                     int i = Interlocked.Increment(ref counter);
                     try
                     {
-                        await connection.ExecuteAsync($"DROP DATABASE [{item.Name}]", commandTimeout: _timeout);
-                        await connection.ExecuteAsync($"EXEC msdb.dbo.sp_delete_database_backuphistory @database_name = N'{item.Name}'", commandTimeout: _timeout);
-                    }
-                    catch (SqlException sqle) when (sqle.Number == 3101)
-                    {
-                        //Exclusive access could not be obtained because the database is in use.
-                        logger.Debug(sqle, item.Name + " : Error on first attempt, retrying drop in sxclusive mode");
-                        try
+                        if (state.TryGetValue(item.Name, out var databaseInfo) && databaseInfo.State != DatabaseState.RESTORING)
                         {
                             await connection.ExecuteAsync($"ALTER DATABASE [{item.Name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE", commandTimeout: _timeout);
-                            await connection.ExecuteAsync($"DROP DATABASE [{item.Name}]", commandTimeout: _timeout);
-                            await connection.ExecuteAsync($"EXEC msdb.dbo.sp_delete_database_backuphistory @database_name = N'{item.Name}'", commandTimeout: _timeout);
                         }
-                        catch (Exception e)
-                        {
-                            logger.Error(e, "Error while trying to drop db in SINGLE_USER mode");
-                            return false;
-                        }
+                        await connection.ExecuteAsync($"DROP DATABASE [{item.Name}]", commandTimeout: _timeout);
+                        await connection.ExecuteAsync($"EXEC msdb.dbo.sp_delete_database_backuphistory @database_name = N'{item.Name}'", commandTimeout: _timeout);
                     }
                     catch (Exception e)
                     {
