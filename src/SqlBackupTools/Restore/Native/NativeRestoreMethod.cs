@@ -105,7 +105,10 @@ namespace SqlBackupTools.Restore.Native
                     forceRestoreFull = true;
                     try
                     {
-                        await sqlConnection.ExecuteAsync($"ALTER DATABASE [{item.Name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE", commandTimeout: _state.RestoreCommand.Timeout);
+                        if (_state.ActualDbs.TryGetValue(item.Name, out var databaseInfo) && databaseInfo.State != DatabaseState.RESTORING)
+                        {
+                            await sqlConnection.ExecuteAsync($"ALTER DATABASE [{item.Name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE", commandTimeout: _state.RestoreCommand.Timeout);
+                        }
                         await sqlConnection.ExecuteAsync($"DROP DATABASE [{item.Name}]", commandTimeout: _state.RestoreCommand.Timeout);
                         await sqlConnection.ExecuteAsync($"EXEC msdb.dbo.sp_delete_database_backuphistory @database_name = N'{item.Name}'", commandTimeout: _state.RestoreCommand.Timeout);
                     }
