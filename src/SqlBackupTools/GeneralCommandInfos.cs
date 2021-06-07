@@ -26,7 +26,7 @@ namespace SqlBackupTools
         public bool Verbose { get; set; }
 
         [Option("timeout", HelpText = "SQL Command timeout in seconds")]
-        public int Timeout { get; set; } = 90 * 60;
+        public int Timeout { get; set; } = 90 * 60; // 1h
 
         [Option("logs", HelpText = "Log folder")]
         public DirectoryInfo LogsPath { get; set; }
@@ -73,7 +73,7 @@ namespace SqlBackupTools
                 DataSource = Hostname,
                 InitialCatalog = database,
                 ApplicationName = "SqlBackupTools",
-                ConnectTimeout = 30 * 60 // 30 min,
+                ConnectTimeout = Timeout
             };
             if (!String.IsNullOrWhiteSpace(Login) && !String.IsNullOrWhiteSpace(Password))
             {

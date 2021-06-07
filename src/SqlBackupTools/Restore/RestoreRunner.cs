@@ -205,7 +205,7 @@ namespace SqlBackupTools.Restore
                 state.Loggger.Debug("Applying " + scripts.Count + " sql scripts");
                 foreach (var script in scripts)
                 {
-                    await sqlConnection.ExecuteAsync(script, commandTimeout: 180);
+                    await sqlConnection.ExecuteAsync(script, commandTimeout: state.RestoreCommand.Timeout);
                 }
             }
             catch (Exception e)
