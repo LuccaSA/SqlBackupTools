@@ -111,5 +111,7 @@ namespace SqlBackupTools
             }
         }
 
+        [Option("checkDb", HelpText = "runs DBCC CHECKDB")]
+        public bool CheckDb { get; set; }
     }
 }

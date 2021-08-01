@@ -212,6 +212,22 @@ namespace SqlBackupTools.Notification
                 });
             }
 
+            if (state.IntegrityErrors.Any())
+            {
+                subMsg.Attachments.Add(new Attachment
+                {
+                    Color = AlertLevel.Error.ToSlackColor(),
+                    Title = $"DBCC CHECKDB Error :",
+                    Fields = state.IntegrityErrors
+                       .Select(i => new Field
+                       {
+                           Title = i.Key + " :",
+                           Value = string.Join(Environment.NewLine, i.Value),
+                           Short = false
+                       }).ToArray()
+                });
+            }
+
             await _slackClient.SendSlackMessageAsync(subMsg, slackSecret);
         }
 
