@@ -32,6 +32,7 @@ namespace SqlBackupTools.Restore
         public ReportStatus Status { get; internal set; } = ReportStatus.Ok;
         public ServerInfos Info { get; internal set; }
         public string Mode { get; internal set; }
+        public Dictionary<string, List<string>> IntegrityErrors { get; } = new Dictionary<string, List<string>>();
     }
 
     [Flags]
@@ -70,7 +71,7 @@ namespace SqlBackupTools.Restore
         public TimeSpan Accumulated { get; set; }
         public ServerInfos ServerInfos { get; set; }
         public List<(string name, int count, List<DirectoryInfo> excluded)> DuplicatesExcluded { get; } = new List<(string name, int count, List<DirectoryInfo> excluded)>();
-
+        public Dictionary<string, List<string>> IntegrityErrors { get; } = new Dictionary<string, List<string>>();
         private readonly Stopwatch _sw = new Stopwatch();
         private int _increment = 0;
 
@@ -187,6 +188,12 @@ namespace SqlBackupTools.Restore
                     }
                 }
             }
+
+            foreach(var i in IntegrityErrors)
+            {
+                reportState.IntegrityErrors.Add(i.Key,i.Value);
+            }
+
             return reportState;
         }
 

@@ -98,6 +98,8 @@ namespace SqlBackupTools.Restore
 
             try
             {
+                Exception scriptException = null;
+
                 if (restoreCommand.RunRecovery)
                 {
                     var recoveryException = await restoreMethod.RunRecoveryAsync(item);
@@ -107,13 +109,10 @@ namespace SqlBackupTools.Restore
                         item.SetError(recoveryException);
                         throw recoveryException;
                     }
-                }
 
-                Exception scriptException = null;
-                if (restoreCommand.RunRecovery)
-                {
-                    await using var sqlConnectionOnDatabase = restoreCommand.CreateConnectionMars(item.Name);
-                    scriptException = await PostScriptExecuteAsync(state, sqlConnectionOnDatabase, item);
+                    scriptException = await PostScriptExecuteAsync(state, item);
+
+                    await RunDbccCheckDb(state, item);
                 }
 
                 if (scriptException != null)
@@ -159,6 +158,33 @@ namespace SqlBackupTools.Restore
             return item;
         }
 
+        private static async Task RunDbccCheckDb(RestoreState state, RestoreItem item)
+        {
+            if (state.RestoreCommand.CheckDb == false)
+            {
+                return;
+            }
+
+            await using var sqlConnectionOnDatabase = state.RestoreCommand.CreateConnectionMars(item.Name);
+            try
+            {
+
+                var checkdbResults = await sqlConnectionOnDatabase.QueryAsync<DbccCheckDbResult>("DBCC CHECKDB with TABLERESULTS", commandTimeout: state.RestoreCommand.Timeout);
+
+                foreach (var r in checkdbResults.Where(i => i.Level >= 17))
+                {
+                    state.Loggger.Fatal($"[{item.Name}] Error found while DBCC CHECKDB : " + r.MessageText);
+                    var errors = state.IntegrityErrors.GetValueOrDefault(item.Name, new List<string>());
+                    errors.Add(r.MessageText);
+                }
+            }
+            catch (Exception e)
+            {
+                state.Loggger.Error(e, $"[{item.Name}] Error while DBCC CHECKDB");
+                return;
+            }
+        }
+
         private static bool StartFromFull(RestoreState state, RestoreItem item)
         {
             if (!state.ActualDbs.ContainsKey(item.Name))
@@ -178,7 +204,7 @@ namespace SqlBackupTools.Restore
             return false;
         }
 
-        private static async Task<Exception> PostScriptExecuteAsync(RestoreState state, SqlConnection sqlConnection, RestoreItem restoreItem)
+        private static async Task<Exception> PostScriptExecuteAsync(RestoreState state, RestoreItem restoreItem)
         {
             if (state.RestoreCommand.PostScripts == null)
             {
@@ -203,9 +229,11 @@ namespace SqlBackupTools.Restore
             {
                 var scripts = LoadScripts(state.RestoreCommand);
                 state.Loggger.Debug("Applying " + scripts.Count + " sql scripts");
+                await using var sqlConnectionOnDatabase = state.RestoreCommand.CreateConnectionMars(restoreItem.Name);
+
                 foreach (var script in scripts)
                 {
-                    await sqlConnection.ExecuteAsync(script, commandTimeout: state.RestoreCommand.Timeout);
+                    await sqlConnectionOnDatabase.ExecuteAsync(script, commandTimeout: state.RestoreCommand.Timeout);
                 }
             }
             catch (Exception e)
