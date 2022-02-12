@@ -2,13 +2,21 @@ using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
 using Serilog;
 
 namespace SqlBackupTools.Notification
 {
+    [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, GenerationMode = JsonSourceGenerationMode.Serialization)]
+    [JsonSerializable(typeof(SlackMessage))]
+    [JsonSerializable(typeof(SlackResponse))]
+    internal partial class SlackJsonContext : JsonSerializerContext
+    {
+
+    }
+
     public class SlackClient
     {
         private readonly ILogger _logger;
@@ -26,19 +34,15 @@ namespace SqlBackupTools.Notification
                 var client = new HttpClient { BaseAddress = new Uri(_slackUri) };
                 client.DefaultRequestHeaders.Authorization =
                     new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", slackSecret);
-
-                var json = JsonConvert.SerializeObject(message, new JsonSerializerSettings
-                {
-                    ContractResolver = new CamelCasePropertyNamesContractResolver()
-                });
+                
+                var json = JsonSerializer.Serialize(message, SlackJsonContext.Default.SlackMessage);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var ok = await client.PostAsync("api/chat.postMessage", content);
                 if (!ok.IsSuccessStatusCode)
                 {
                     throw new NotificationException(ok.StatusCode.ToString());
                 }
-
-                var response = JsonConvert.DeserializeObject<SlackResponse>(await ok.Content.ReadAsStringAsync());
+                var response = JsonSerializer.Deserialize<SlackResponse>(await ok.Content.ReadAsStringAsync(), SlackJsonContext.Default.SlackResponse);
                 if (!response.Ok)
                 {
                     throw new NotificationException(response.Error);
@@ -53,11 +57,12 @@ namespace SqlBackupTools.Notification
         }
     }
 
+
     public class SlackMessage
     {
         public string Channel { get; set; }
         public string Text { get; set; }
-        [JsonProperty(PropertyName = "thread_ts")]
+        [JsonPropertyName("thread_ts")]
         public string ThreadTs { get; set; }
         public List<Attachment> Attachments { get; set; }
 
