@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,6 +12,7 @@ namespace SqlBackupTools.Notification
 {
     public static class NotificationExtensions
     {
+        private static CultureInfo _c = CultureInfo.InvariantCulture;
         public static async Task SendMailAsync(this ReportState state,string email, string smtp, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(smtp))
@@ -26,15 +28,15 @@ namespace SqlBackupTools.Notification
                 $"Restore Backup {Environment.MachineName} : {state.Restored.Count}/{state.TotalProcessed}";
 
             var sb = new StringBuilder();
-            sb.AppendLine($"Restore finished in {state.TotalTime.HumanizedTimeSpan()}");
+            sb.AppendLine(_c, $"Restore finished in {state.TotalTime.HumanizedTimeSpan()}");
             sb.AppendLine();
 
             if (state.Errors.Count != 0)
             {
-                sb.AppendLine($"Errors : {state.Errors.Count}");
+                sb.AppendLine(_c, $"Errors : {state.Errors.Count}");
                 foreach (var e in state.Errors)
                 {
-                    sb.AppendLine($"{e.Item.Name} : {e.Error}");
+                    sb.AppendLine(_c, $"{e.Item.Name} : {e.Error}");
                 }
 
                 sb.AppendLine();
@@ -42,17 +44,17 @@ namespace SqlBackupTools.Notification
 
             if (state.BackupNotFoundDbExists.Count != 0)
             {
-                sb.AppendLine($"Warnings : {state.BackupNotFoundDbExists.Count}");
+                sb.AppendLine(_c, $"Warnings : {state.BackupNotFoundDbExists.Count}");
                 foreach (var w in state.BackupNotFoundDbExists)
                 {
-                    sb.AppendLine($"Db {w.Name} in state {w.State}, no .bak found");
+                    sb.AppendLine(_c, $"Db {w.Name} in state {w.State}, no .bak found");
                 }
                 sb.AppendLine();
             }
 
             if (state.MissingFull.Count != 0)
             {
-                sb.AppendLine($"Missing .bak : {state.MissingFull.Count}");
+                sb.AppendLine(_c, $"Missing .bak : {state.MissingFull.Count}");
                 foreach (var w in state.MissingFull)
                 {
                     sb.AppendLine($"Missing .bak in folder " + w.Path);
@@ -62,10 +64,10 @@ namespace SqlBackupTools.Notification
 
             if (state.Restored.Count != 0)
             {
-                sb.AppendLine($"OK : {state.Restored.Count}");
+                sb.AppendLine(_c, $"OK : {state.Restored.Count}");
                 foreach (var o in state.Restored)
                 {
-                    sb.AppendLine($"{o.Name}");
+                    sb.AppendLine(_c, $"{o.Name}");
                 }
                 sb.AppendLine();
             }
