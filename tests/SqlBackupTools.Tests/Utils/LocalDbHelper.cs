@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using Dapper;
 using Microsoft.Data.SqlClient;
+using SqlBackupTools.Helpers;
 
 namespace SqlBackupTools.Tests.Utils
 {
@@ -40,21 +41,14 @@ namespace SqlBackupTools.Tests.Utils
             return (await rdr.ReadAsync()) ? rdr.GetString(0) : null;
         }
 
-        public static SqlConnection SqlConnection(this string hostName, string dbName = null)
+        public static SqlConnection SqlConnection(this string hostName, string dbName = null, int timeout = 120)
         {
-            if (string.IsNullOrWhiteSpace(hostName))
-            {
-                hostName = "localhost";
-            }
-            if (string.IsNullOrWhiteSpace(dbName))
-            {
-                dbName = "master";
-            }
-            string connectionString = $"Server={hostName};Database={dbName};Trusted_Connection=True;MultipleActiveResultSets=true;Connection Timeout=120";
-            var sql = new SqlConnection(connectionString);
+            var builder = hostName.PrepareSqlConnectionStringBuilder(dbName);
+            var sql = new SqlConnection(builder.ConnectionString);
             sql.Open();
             return sql;
         }
+         
 
         private static async Task ExecuteAsyncWithRetry(this SqlConnection sql, string sqlCommand, int retry = 5)
         {

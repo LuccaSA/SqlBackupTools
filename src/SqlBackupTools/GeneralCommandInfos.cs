@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using CommandLine;
 using Microsoft.Data.SqlClient;
+using SqlBackupTools.Helpers;
 
 namespace SqlBackupTools
 {
@@ -27,6 +28,9 @@ namespace SqlBackupTools
 
         [Option("timeout", HelpText = "SQL Command timeout in seconds")]
         public int Timeout { get; set; } = 90 * 60; // 1h
+
+        [Option('e', "encrypt", HelpText = "Uses SSL encryption for all data sent between the client and server")]
+        public bool Encrypt { get; set; }
 
         [Option("logs", HelpText = "Log folder")]
         public DirectoryInfo LogsPath { get; set; }
@@ -59,33 +63,10 @@ namespace SqlBackupTools
 
         public SqlConnection CreateConnectionMars(string database = "master")
         {
-            var builder = PrepareSqlConnectionStringBuilder(database);
-            builder.MultipleActiveResultSets = true;
+            var builder = Hostname.PrepareSqlConnectionStringBuilder(database, Login, Password, Timeout);
             var connection = new SqlConnection(builder.ConnectionString);
             connection.Open();
             return connection;
-        }
-
-        private SqlConnectionStringBuilder PrepareSqlConnectionStringBuilder(string database)
-        {
-            var builder = new SqlConnectionStringBuilder
-            {
-                DataSource = Hostname,
-                InitialCatalog = database,
-                ApplicationName = "SqlBackupTools",
-                ConnectTimeout = Timeout
-            };
-            if (!String.IsNullOrWhiteSpace(Login) && !String.IsNullOrWhiteSpace(Password))
-            {
-                builder.UserID = Login;
-                builder.Password = Password;
-            }
-            else
-            {
-                builder.IntegratedSecurity = true;
-            }
-
-            return builder;
         }
     }
 
