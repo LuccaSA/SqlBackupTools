@@ -9,19 +9,14 @@ using Serilog;
 
 namespace SqlBackupTools.Notification
 {
-    [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, GenerationMode = JsonSourceGenerationMode.Serialization)]
-    [JsonSerializable(typeof(SlackMessage))]
-    [JsonSerializable(typeof(SlackResponse))]
-    internal partial class SlackJsonContext : JsonSerializerContext
-    {
-
-    }
-
     public class SlackClient
     {
         private readonly ILogger _logger;
         private static string _slackUri = "https://slack.com";
-        
+        private static JsonSerializerOptions _opt = new JsonSerializerOptions()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
         public SlackClient(ILogger logger)
         {
             _logger = logger;
@@ -34,19 +29,32 @@ namespace SqlBackupTools.Notification
                 var client = new HttpClient { BaseAddress = new Uri(_slackUri) };
                 client.DefaultRequestHeaders.Authorization =
                     new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", slackSecret);
-                
-                var json = JsonSerializer.Serialize(message, SlackJsonContext.Default.SlackMessage);
+
+                var json = JsonSerializer.Serialize(message, _opt);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var ok = await client.PostAsync("api/chat.postMessage", content);
                 if (!ok.IsSuccessStatusCode)
                 {
                     throw new NotificationException(ok.StatusCode.ToString());
                 }
-                var response = JsonSerializer.Deserialize<SlackResponse>(await ok.Content.ReadAsStringAsync(), SlackJsonContext.Default.SlackResponse);
-                if (!response.Ok)
+
+                var resp = await ok.Content.ReadAsStringAsync();
+                SlackResponse response;
+                try
                 {
-                    throw new NotificationException(response.Error);
+                    response = JsonSerializer.Deserialize<SlackResponse>(resp, _opt);
+                    if (!response.Ok)
+                    {
+                        throw new NotificationException(response.Error);
+                    }
                 }
+                catch (Exception ee)
+                {
+                    _logger.Error(ee, json);
+                    _logger.Error(ee, resp);
+                    throw;
+                }
+
                 return response;
             }
             catch (Exception e)
@@ -113,6 +121,8 @@ namespace SqlBackupTools.Notification
         }
     }
 
+
+
     public class SlackResponse
     {
         public bool Ok { get; set; }
@@ -132,4 +142,7 @@ namespace SqlBackupTools.Notification
         public string Subtype { get; set; }
         public string Ts { get; set; }
     }
+
+    // ------------------------
+     
 }
