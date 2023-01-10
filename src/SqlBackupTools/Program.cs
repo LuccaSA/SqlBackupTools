@@ -10,6 +10,7 @@ using Serilog.Core;
 using Serilog.Events;
 using SqlBackupTools.Restore;
 using SqlBackupTools.SerilogAsync;
+using System.Globalization;
 
 namespace SqlBackupTools
 {
@@ -102,8 +103,8 @@ namespace SqlBackupTools
                 .WriteTo.Async(conf =>
                 {
                     var path = commandInfos.LogsPath?.Exists == true ? Path.Combine(commandInfos.LogsPath.FullName, logFileName) : "logs/" + logFileName;
-                    conf.File(path, rollingInterval: RollingInterval.Day, retainedFileCountLimit: 31);
-                    conf.Console();
+                    conf.File(path, rollingInterval: RollingInterval.Day, retainedFileCountLimit: 31, formatProvider: CultureInfo.InvariantCulture);
+                    conf.Console(formatProvider: CultureInfo.InvariantCulture);
                 }).MinimumLevel.Is(level);
 
             return loggerConf.CreateLogger();

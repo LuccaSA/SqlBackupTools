@@ -1,7 +1,8 @@
-﻿/.vs/
+/.vs/
 bin/
 obj/
 /logs
 /published
 *.user
 launchSettings.json
+/src/
