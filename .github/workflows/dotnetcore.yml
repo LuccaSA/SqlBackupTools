@@ -52,8 +52,8 @@ jobs:
           Start-Process -FilePath "SqlLocalDB.msi" -Wait -ArgumentList "/qn", "/norestart", "/l*v SqlLocalDBInstall.log", "IACCEPTSQLLOCALDBLICENSETERMS=YES";
           Write-Host "Checking"
           sqlcmd -l 60 -S "(localdb)\MSSQLLocalDB" -Q "SELECT @@VERSION;"
-          sqlcmd -l 60 -S "(localdb)\MSSQLLocalDB" -Q "ALTER LOGIN [sa] WITH PASSWORD=N'${{ secrets.SQL_SA_PASSWORD }}'"
-          sqlcmd -l 60 -S "(localdb)\MSSQLLocalDB" -Q "ALTER LOGIN [sa] ENABLE"
+#          sqlcmd -l 60 -S "(localdb)\MSSQLLocalDB" -Q "ALTER LOGIN [sa] WITH PASSWORD=N'${{ secrets.SQL_SA_PASSWORD }}'"
+#          sqlcmd -l 60 -S "(localdb)\MSSQLLocalDB" -Q "ALTER LOGIN [sa] ENABLE"
           Write-Host "SqlLocalDB 2019 installed and accessible at (localdb)\MSSQLLocalDB"
 
     - name: Test SQL Connection
