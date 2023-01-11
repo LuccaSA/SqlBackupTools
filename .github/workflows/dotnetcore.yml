@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    runs-on: [self-hosted, Windows]
+    runs-on: windows-latest
 
     steps:
     - uses: actions/checkout@v2
@@ -42,6 +42,9 @@ jobs:
 
     - name: SonarScanner begin
       run: tools/dotnet-sonarscanner begin /k:"SqlBackupTools" /o:"lucca" /v:${{ env.GitVersion_FullSemVer }} /d:sonar.login=${{ secrets.SONAR_TOKEN }} /d:sonar.host.url="https://sonarcloud.io/" /d:sonar.coverageReportPaths="./sonarCoverage/SonarQube.xml"
+
+    - name: Sql Server
+      run: docker run -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=1StrongPwd!!" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
 
     - name: Test
       run: dotnet test --configuration Release /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory:./coverage
