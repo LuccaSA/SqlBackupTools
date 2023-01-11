@@ -54,23 +54,16 @@ jobs:
           sqlcmd -l 60 -S "(localdb)\MSSQLLocalDB" -Q "SELECT @@VERSION;"
           sqlcmd -l 60 -S "(localdb)\MSSQLLocalDB" -Q "ALTER LOGIN [sa] WITH PASSWORD=N'${{ secrets.SQL_SA_PASSWORD }}'"
           sqlcmd -l 60 -S "(localdb)\MSSQLLocalDB" -Q "ALTER LOGIN [sa] ENABLE"
-          Write-Host "SqlLocalDB $Version installed and accessible at (localdb)\MSSQLLocalDB"
+          Write-Host "SqlLocalDB 2019 installed and accessible at (localdb)\MSSQLLocalDB"
 
-      #    - name: LocalDB
-#      uses: potatoqualitee/mssqlsuite@v1.7
-#      with:
-#        install: localdb
-#        sa-password: ${{ secrets.SQL_SA_PASSWORD }}
-#        show-log: true
-
-    - name: Run sqlcmd
+    - name: Test SQL Connection
       run: sqlcmd -S "(localdb)\MSSQLLocalDB" -U sa -P ${{ secrets.SQL_SA_PASSWORD }} -d tempdb -Q "SELECT @@version;"
 
     - name: Test
       run: dotnet test --configuration Release /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory:./coverage
       env:
-        TEST_SQL_INSTANCE: localhost
-        TEST_SQL_BACKUP_FOLDER: ${{ secrets.TEST_SQL_BACKUP_FOLDER }}
+        TEST_SQL_INSTANCE: (localdb)\MSSQLLocalDB
+        TEST_SQL_BACKUP_FOLDER: test_folder
 
     - name: Merge coverages
       run: tools/reportgenerator -reports:./coverage/*/*.xml -targetdir:./sonarCoverage -reporttypes:SonarQube
