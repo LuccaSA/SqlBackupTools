@@ -43,12 +43,28 @@ jobs:
     - name: SonarScanner begin
       run: tools/dotnet-sonarscanner begin /k:"SqlBackupTools" /o:"lucca" /v:${{ env.GitVersion_FullSemVer }} /d:sonar.login=${{ secrets.SONAR_TOKEN }} /d:sonar.host.url="https://sonarcloud.io/" /d:sonar.coverageReportPaths="./sonarCoverage/SonarQube.xml"
 
-    - name: LocalDB
-      uses: potatoqualitee/mssqlsuite@v1.7
-      with:
-        install: localdb
-        sa-password: ${{ secrets.SQL_SA_PASSWORD }}
-        show-log: true
+    - task: LocalDB
+      displayName: Install SQL 2019 Localdb
+      inputs:
+        targetType: 'inline'
+        script: |
+          Write-Host "Downloading"
+          Import-Module BitsTransfer
+          Start-BitsTransfer -Source https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SqlLocalDB.msi -Destination SqlLocalDB.msi
+          Write-Host "Installing"
+          Start-Process -FilePath "SqlLocalDB.msi" -Wait -ArgumentList "/qn", "/norestart", "/l*v SqlLocalDBInstall.log", "IACCEPTSQLLOCALDBLICENSETERMS=YES";
+          Write-Host "Checking"
+          sqlcmd -l 60 -S "(localdb)\MSSQLLocalDB" -Q "SELECT @@VERSION;"
+          sqlcmd -l 60 -S "(localdb)\MSSQLLocalDB" -Q "ALTER LOGIN [sa] WITH PASSWORD=N'${{ secrets.SQL_SA_PASSWORD }}'"
+          sqlcmd -l 60 -S "(localdb)\MSSQLLocalDB" -Q "ALTER LOGIN [sa] ENABLE"
+          Write-Host "SqlLocalDB $Version installed and accessible at (localdb)\MSSQLLocalDB"
+
+      #    - name: LocalDB
+#      uses: potatoqualitee/mssqlsuite@v1.7
+#      with:
+#        install: localdb
+#        sa-password: ${{ secrets.SQL_SA_PASSWORD }}
+#        show-log: true
 
     - name: Run sqlcmd
       run: sqlcmd -S "(localdb)\MSSQLLocalDB" -U sa -P ${{ secrets.SQL_SA_PASSWORD }} -d tempdb -Q "SELECT @@version;"
