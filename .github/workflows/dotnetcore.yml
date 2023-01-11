@@ -52,8 +52,6 @@ jobs:
           Start-Process -FilePath "SqlLocalDB.msi" -Wait -ArgumentList "/qn", "/norestart", "/l*v SqlLocalDBInstall.log", "IACCEPTSQLLOCALDBLICENSETERMS=YES";
           Write-Host "Checking"
           sqlcmd -l 60 -S "(localdb)\MSSQLLocalDB" -Q "SELECT @@VERSION;"
-#          sqlcmd -l 60 -S "(localdb)\MSSQLLocalDB" -Q "ALTER LOGIN [sa] WITH PASSWORD=N'${{ secrets.SQL_SA_PASSWORD }}'"
-#          sqlcmd -l 60 -S "(localdb)\MSSQLLocalDB" -Q "ALTER LOGIN [sa] ENABLE"
           Write-Host "SqlLocalDB 2019 installed and accessible at (localdb)\MSSQLLocalDB"
 
     - name: Test SQL Connection
@@ -63,7 +61,6 @@ jobs:
       run: dotnet test --configuration Release /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory:./coverage
       env:
         TEST_SQL_INSTANCE: (localdb)\MSSQLLocalDB
-#        TEST_SQL_BACKUP_FOLDER: test_folder
 
     - name: Merge coverages
       run: tools/reportgenerator -reports:./coverage/*/*.xml -targetdir:./sonarCoverage -reporttypes:SonarQube
