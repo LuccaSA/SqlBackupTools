@@ -54,8 +54,8 @@ jobs:
           sqlcmd -l 60 -S "(localdb)\MSSQLLocalDB" -Q "SELECT @@VERSION;"
           Write-Host "SqlLocalDB 2019 installed and accessible at (localdb)\MSSQLLocalDB"
 
-    - name: Test SQL Connection
-      run: sqlcmd -S "(localdb)\MSSQLLocalDB" -U sa -P ${{ secrets.SQL_SA_PASSWORD }} -d tempdb -Q "SELECT @@version;"
+#    - name: Test SQL Connection
+#      run: sqlcmd -S "(localdb)\MSSQLLocalDB" -U sa -P ${{ secrets.SQL_SA_PASSWORD }} -d tempdb -Q "SELECT @@version;"
 
     - name: Test
       run: dotnet test --configuration Release /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory:./coverage
