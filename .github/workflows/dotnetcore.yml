@@ -63,7 +63,7 @@ jobs:
       run: dotnet test --configuration Release /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory:./coverage
       env:
         TEST_SQL_INSTANCE: (localdb)\MSSQLLocalDB
-        TEST_SQL_BACKUP_FOLDER: test_folder
+#        TEST_SQL_BACKUP_FOLDER: test_folder
 
     - name: Merge coverages
       run: tools/reportgenerator -reports:./coverage/*/*.xml -targetdir:./sonarCoverage -reporttypes:SonarQube
