@@ -51,7 +51,7 @@ jobs:
         show-log: true
 
     - name: Run sqlcmd
-      run: sqlcmd -S (localdb)\MSSQLLocalDB -U sa -P ${{ secrets.SQL_SA_PASSWORD }} -d tempdb -Q "SELECT @@version;"
+      run: sqlcmd -S "(localdb)\MSSQLLocalDB" -U sa -P ${{ secrets.SQL_SA_PASSWORD }} -d tempdb -Q "SELECT @@version;"
 
     - name: Test
       run: dotnet test --configuration Release /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory:./coverage
