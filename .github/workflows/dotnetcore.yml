@@ -43,7 +43,7 @@ jobs:
     - name: SonarScanner begin
       run: tools/dotnet-sonarscanner begin /k:"SqlBackupTools" /o:"lucca" /v:${{ env.GitVersion_FullSemVer }} /d:sonar.login=${{ secrets.SONAR_TOKEN }} /d:sonar.host.url="https://sonarcloud.io/" /d:sonar.coverageReportPaths="./sonarCoverage/SonarQube.xml"
 
-    - task: LocalDB
+    - name: LocalDB
       run: |
           Write-Host "Downloading"
           Import-Module BitsTransfer
