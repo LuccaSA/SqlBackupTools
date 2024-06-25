@@ -2,29 +2,12 @@ using System;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using Serilog;
-using Serilog.Configuration;
 using Serilog.Core;
 using Serilog.Debugging;
 using Serilog.Events;
 
 namespace SqlBackupTools.SerilogAsync
 {
-    public static class LoggerConfigurationAsyncExtensions
-    {
-        public static LoggerConfiguration Async(
-            this LoggerSinkConfiguration loggerSinkConfiguration,
-            Action<LoggerSinkConfiguration> configure)
-        {
-            return LoggerSinkConfiguration.Wrap(
-                loggerSinkConfiguration,
-                wrappedSink => new BackgroundWorkerSink(wrappedSink),
-                configure,
-                LevelAlias.Minimum,
-                null);
-        }
-    }
-    
     internal sealed class BackgroundWorkerSink : ILogEventSink, IDisposable
     {
         private readonly ILogEventSink _wrappedSink;

@@ -11,6 +11,7 @@ using Serilog.Events;
 using SqlBackupTools.Restore;
 using SqlBackupTools.SerilogAsync;
 using System.Globalization;
+using Serilog.Configuration;
 
 namespace SqlBackupTools
 {
@@ -99,13 +100,20 @@ namespace SqlBackupTools
             };
 
             var level = commandInfos.Verbose ? LogEventLevel.Debug : LogEventLevel.Information;
-            var loggerConf = new LoggerConfiguration()
-                .WriteTo.Async(conf =>
-                {
-                    var path = commandInfos.LogsPath?.Exists == true ? Path.Combine(commandInfos.LogsPath.FullName, logFileName) : "logs/" + logFileName;
-                    conf.File(path, rollingInterval: RollingInterval.Day, retainedFileCountLimit: 31, formatProvider: CultureInfo.InvariantCulture);
-                    conf.Console(formatProvider: CultureInfo.InvariantCulture);
-                }).MinimumLevel.Is(level);
+
+
+            var loggerConf = new LoggerConfiguration();
+
+            loggerConf.MinimumLevel.Is(level);
+
+            var sink = LoggerSinkConfiguration.Wrap(sink => new BackgroundWorkerSink(sink), conf =>
+            {
+                var path = commandInfos.LogsPath?.Exists == true ? Path.Combine(commandInfos.LogsPath.FullName, logFileName) : "logs/" + logFileName;
+                conf.File(path, rollingInterval: RollingInterval.Day, retainedFileCountLimit: 31, formatProvider: CultureInfo.InvariantCulture);
+                conf.Console(formatProvider: CultureInfo.InvariantCulture);
+            });
+
+            loggerConf.WriteTo.Sink(sink);
 
             return loggerConf.CreateLogger();
         }
