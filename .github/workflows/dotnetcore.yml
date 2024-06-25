@@ -48,36 +48,14 @@ jobs:
     - name: SonarScanner begin
       run: tools/dotnet-sonarscanner begin /k:"SqlBackupTools" /o:"lucca" /v:${{ env.GitVersion_FullSemVer }} /d:sonar.login=${{ secrets.SONAR_TOKEN }} /d:sonar.host.url="https://sonarcloud.io/" /d:sonar.coverageReportPaths="./sonarCoverage/SonarQube.xml"
 
-    - name: LocalDB
-      run: |
-          Write-Host "Downloading"
-          Import-Module BitsTransfer
-          Start-BitsTransfer -Source https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SqlLocalDB.msi -Destination SqlLocalDB.msi
-          Write-Host "Installing"
-          try {
-              Start-Process -FilePath "SqlLocalDB.msi" -Wait -ArgumentList "/qn", "/norestart", "/l*v SqlLocalDBInstall.log", "IACCEPTSQLLOCALDBLICENSETERMS=YES"
-          }
-          catch {
-              Write-Host "Installation failed"
-              Get-Content SqlLocalDBInstall.log
-              throw
-          }
-
-          Write-Host "Checking"
-          try {
-              sqlcmd -l 60 -S "(localdb)\MSSQLLocalDB" -Q "SELECT @@VERSION;"
-              Write-Host "SqlLocalDB 2019 installed and accessible at (localdb)\MSSQLLocalDB"
-          }
-          catch {
-              Write-Host "Sqlcmd execution failed"
-              throw
-          }
+    - name: SqlServer
+      run: choco install sql-server-2019 -y --params="'/Q /SUPPRESSPRIVACYSTATEMENTNOTICE /IACCEPTSQLSERVERLICENSETERMS /ACTION=Install /SkipRules=RebootRequiredCheck /FEATURES=SQLENGINE /SECURITYMODE=SQL /TCPENABLED=1 /SAPWD=BiSMwdaaSZ8JD5dEhx8fj9q3CFLnnrXq'"
 
     - name: Test
       run: dotnet test --configuration Release /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory:./coverage
       env:
-        TEST_SQL_INSTANCE: (localdb)\MSSQLLocalDB
-
+        TEST_SQL_INSTANCE: Data Source=localhost;Initial Catalog=master;User Id=sa;Password=BiSMwdaaSZ8JD5dEhx8fj9q3CFLnnrXq;
+        
     - name: Merge coverages
       run: tools/reportgenerator -reports:./coverage/*/*.xml -targetdir:./sonarCoverage -reporttypes:SonarQube
 
