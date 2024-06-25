@@ -72,18 +72,45 @@ namespace SqlBackupTools.Restore.Native
                     }
                     else
                     {
-                        if (_state.RestoredDbs.TryGetValue(item.Name, out RestoreHistoryInfo historyInfo) &&
-                            !string.IsNullOrEmpty(historyInfo.LastBackupPath))
+                        if (_state.RestoredDbs.TryGetValue(item.Name, out RestoreHistoryInfo historyInfo))
                         {
-                            lastRestored = new FileInfo(historyInfo.LastBackupPath);
-                            var restoreLogsFrom = lastRestored.BackupDate();
-                            item.RpoRecentRestore = restoreLogsFrom;
-                            _state.Loggger.Debug("Last restore made :  path=" + historyInfo.LastBackupPath + ", date=" +
-                                                 restoreLogsFrom);
+                            if (string.IsNullOrEmpty(historyInfo.LastBackupPath))
+                            {
+                                _state.Loggger.Debug("No last restore path found, but db exists, dropping " + item.Name);
+                                // drop the db
+                                var exc = await DropDatabaseWhileTryingRestore(item, sqlConnection);
+                                if (exc != null)
+                                {
+                                    return exc;
+                                }
+
+                                // then restore full
+                                _state.Loggger.Debug("Restoring the last backup FULL : " + item.Name);
+                                lastRestored = await RestoreFullAsync(item, modeFileList, sqlConnection);
+                                item.RpoRecentRestore = lastRestored.BackupDate();
+                            }
+                            else
+                            {
+                                lastRestored = new FileInfo(historyInfo.LastBackupPath);
+                                var restoreLogsFrom = lastRestored.BackupDate();
+                                item.RpoRecentRestore = restoreLogsFrom;
+                                _state.Loggger.Debug("Last restore made :  path=" + historyInfo.LastBackupPath + ", date=" + restoreLogsFrom);
+                            }
                         }
                         else
                         {
-                            throw new BackupRestoreException("No backup full, and no database in recovering state, can't continue");
+                            _state.Loggger.Debug("No last restore found, but db may exists, dropping " + item.Name);
+                            // drop the db
+                            var exc = await DropDatabaseWhileTryingRestore(item, sqlConnection);
+                            if (exc != null)
+                            {
+                                return exc;
+                            }
+
+                            // then restore full
+                            _state.Loggger.Debug("Restoring the last backup FULL : " + item.Name);
+                            lastRestored = await RestoreFullAsync(item, modeFileList, sqlConnection);
+                            item.RpoRecentRestore = lastRestored.BackupDate();
                         }
                     }
 
@@ -100,21 +127,10 @@ namespace SqlBackupTools.Restore.Native
                     item.StatsDropped++;
                     _state.Loggger.Debug(sqle, item.Name + " : Error on first attempt, retrying from scratch");
                     forceRestoreFull = true;
-                    bool singleUserMode = false;
-                    try
+                    var exc = await DropDatabaseWhileTryingRestore(item, sqlConnection);
+                    if (exc != null)
                     {
-                        if (_state.ActualDbs.TryGetValue(item.Name, out var databaseInfo) && databaseInfo.State != DatabaseState.RESTORING)
-                        {
-                            singleUserMode = true;
-                            await sqlConnection.ExecuteAsync($"ALTER DATABASE [{item.Name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE", commandTimeout: _state.RestoreCommand.Timeout);
-                        }
-                        await sqlConnection.ExecuteAsync($"DROP DATABASE [{item.Name}]", commandTimeout: _state.RestoreCommand.Timeout);
-                        await sqlConnection.ExecuteAsync($"EXEC msdb.dbo.sp_delete_database_backuphistory @database_name = N'{item.Name}'", commandTimeout: _state.RestoreCommand.Timeout);
-                    }
-                    catch (Exception e)
-                    {
-                        _state.Loggger.Error(e, $"Error while trying to drop db{(singleUserMode ? " in SINGLE_USER mode" : string.Empty)}");
-                        return e;
+                        return exc;
                     }
                 }
                 catch (SqlException sqle)
@@ -125,6 +141,29 @@ namespace SqlBackupTools.Restore.Native
                     modeFileList = true;
                 }
                 catch (Exception e)
+                {
+                    return e;
+                }
+            }
+            return null;
+        }
+
+        private async Task<Exception> DropDatabaseWhileTryingRestore(RestoreItem item, SqlConnection sqlConnection)
+        {
+            bool singleUserMode = false;
+            try
+            {
+                if (_state.ActualDbs.TryGetValue(item.Name, out var databaseInfo) && databaseInfo.State != DatabaseState.RESTORING)
+                {
+                    singleUserMode = true;
+                    await sqlConnection.ExecuteAsync($"ALTER DATABASE [{item.Name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE", commandTimeout: _state.RestoreCommand.Timeout);
+                }
+                await sqlConnection.ExecuteAsync($"DROP DATABASE [{item.Name}]", commandTimeout: _state.RestoreCommand.Timeout);
+                await sqlConnection.ExecuteAsync($"EXEC msdb.dbo.sp_delete_database_backuphistory @database_name = N'{item.Name}'", commandTimeout: _state.RestoreCommand.Timeout);
+            }
+            catch (Exception e)
+            {
+                _state.Loggger.Error(e, $"Error while trying to drop db{(singleUserMode ? " in SINGLE_USER mode" : string.Empty)}");
                 {
                     return e;
                 }
