@@ -10,6 +10,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{71E7863F-0717-4A94-94E7-41338BA249E0}"
 	ProjectSection(SolutionItems) = preProject
 		Directory.Build.props = Directory.Build.props
+		.github\workflows\dotnetcore.yml = .github\workflows\dotnetcore.yml
 		global.json = global.json
 		NuGet.Config = NuGet.Config
 	EndProjectSection
