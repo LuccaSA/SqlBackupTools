@@ -66,7 +66,7 @@ jobs:
         
     - name: Pack
       if: startsWith(github.ref, 'refs/tags/')
-      run: dotnet publish src\SqlBackupTools\SqlBackupTools.csproj -c Release -o published -r win10-x64 /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:VersionPrefix="${{ env.GitVersion_SemVer }}" /p:AssemblyVersion="${{ env.GitVersion_AssemblySemVer }}"
+      run: dotnet publish src\SqlBackupTools\SqlBackupTools.csproj -c Release -o published -r win-x64 /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:VersionPrefix="${{ env.GitVersion_SemVer }}" /p:AssemblyVersion="${{ env.GitVersion_AssemblySemVer }}"
 
     - name: Zip
       if: startsWith(github.ref, 'refs/tags/')
