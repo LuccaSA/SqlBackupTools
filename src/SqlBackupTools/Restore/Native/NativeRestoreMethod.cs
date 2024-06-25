@@ -284,7 +284,8 @@ namespace SqlBackupTools.Restore.Native
                         // - adding the current one again
                         if (lastLogFile == null)
                         {
-                            throw new BackupRestoreException("todo : extract last trn from backup history");
+                            var ex = await DropDatabaseWhileTryingRestore(item, sqlConnection);
+                            throw new BackupRestoreException("The log in this backup set begins at LSN x, which is too recent to apply to the database. We're dropping the DB, and will try restore full on next loop.", ex);
                         }
                         backupLogsToRestore.Push((currentLogFile, RetryStrategy.None));
                         backupLogsToRestore.Push((lastLogFile, RetryStrategy.ExtractHeaders));

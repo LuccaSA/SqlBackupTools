@@ -263,7 +263,7 @@ WHERE s.rnk = 1", commandTimeout: _systemQueryTimeout)).Where(d => !restoreComma
             ServerInfos = await SqlConnection.GetServerInfosAsync();
         }
 
-        private const int _systemQueryTimeout = 10;
+        private const int _systemQueryTimeout = 30;
 
         public Task EnsuredIndexsExistsAsync()
         {
@@ -293,6 +293,6 @@ SERVERPROPERTY('InstanceDefaultLogPath') AS LogPath,
             sqlConnection.QueryAsync<DatabaseInfo>(@"select name, state 
 from sys.databases where database_id > 4 ", commandTimeout: _systemQueryTimeout);
 
-        private const int _systemQueryTimeout = 10;
+        private const int _systemQueryTimeout = 30;
     }
 }
