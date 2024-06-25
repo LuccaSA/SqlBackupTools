@@ -54,10 +54,24 @@ jobs:
           Import-Module BitsTransfer
           Start-BitsTransfer -Source https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SqlLocalDB.msi -Destination SqlLocalDB.msi
           Write-Host "Installing"
-          Start-Process -FilePath "SqlLocalDB.msi" -Wait -ArgumentList "/qn", "/norestart", "/l*v SqlLocalDBInstall.log", "IACCEPTSQLLOCALDBLICENSETERMS=YES";
+          try {
+              Start-Process -FilePath "SqlLocalDB.msi" -Wait -ArgumentList "/qn", "/norestart", "/l*v SqlLocalDBInstall.log", "IACCEPTSQLLOCALDBLICENSETERMS=YES"
+          }
+          catch {
+              Write-Host "Installation failed"
+              Get-Content SqlLocalDBInstall.log
+              throw
+          }
+
           Write-Host "Checking"
-          sqlcmd -l 60 -S "(localdb)\MSSQLLocalDB" -Q "SELECT @@VERSION;"
-          Write-Host "SqlLocalDB 2019 installed and accessible at (localdb)\MSSQLLocalDB"
+          try {
+              sqlcmd -l 60 -S "(localdb)\MSSQLLocalDB" -Q "SELECT @@VERSION;"
+              Write-Host "SqlLocalDB 2019 installed and accessible at (localdb)\MSSQLLocalDB"
+          }
+          catch {
+              Write-Host "Sqlcmd execution failed"
+              throw
+          }
 
     - name: Test
       run: dotnet test --configuration Release /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory:./coverage
