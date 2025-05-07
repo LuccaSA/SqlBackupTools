@@ -67,7 +67,7 @@ namespace SqlBackupTools.Tests
                 $"EXECUTE [dbo].[DatabaseBackup] @Databases = '{db}', @Directory = '{folder.FullName}', @BackupType = 'FULL'",
                 commandTimeout: _timeout);
 
-            // create table 
+            // create table
             var sqlDb = TestContext.SqlInstance.SqlConnection(db);
             await sqlDb.ExecuteAsync("CREATE TABLE [dbo].[Test]([Id] [int] IDENTITY(1,1) NOT NULL) ON [PRIMARY]");
             await sqlDb.ExecuteAsync("CHECKPOINT",
@@ -111,7 +111,7 @@ namespace SqlBackupTools.Tests
             var backupScript = await client.GetStringAsync(uri);
             foreach (var command in Regex.Split(backupScript, "\nGO"))
             {
-                await sql.ExecuteAsync(command);
+                await sql.ExecuteAsync(command, commandTimeout: 60 * 15);
             }
         }
     }
