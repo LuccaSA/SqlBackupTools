@@ -215,10 +215,7 @@ namespace SqlBackupTools.Restore.Native
             _state.Loggger.Debug("Scraping TRN files from " + restoreLogsFrom);
 
             var backupLogsToRestore = new Stack<(FileInfo logFile, RetryStrategy retry)>();
-            foreach (var logFileInfo in item.Log
-                .EnumerateFiles("*.trn", SearchOption.TopDirectoryOnly)
-                .Where(l => l.BackupDate() > restoreLogsFrom)
-                .OrderByDescending(l => l.BackupDate()))
+            foreach (var logFileInfo in ListTrnFromDisk(item, restoreLogsFrom))
             {
                 backupLogsToRestore.Push((logFileInfo, RetryStrategy.None));
             }
@@ -229,6 +226,7 @@ namespace SqlBackupTools.Restore.Native
                 _state.Loggger.Debug(backupLogsToRestore.Count + " trn files to restore");
 
                 int retryCountUsedFile = 3;
+                int retryMissingTrn = 3;
                 while (backupLogsToRestore.Count != 0)
                 {
                     var (currentLogFile, retryStrategy) = backupLogsToRestore.Pop();
@@ -268,6 +266,7 @@ namespace SqlBackupTools.Restore.Native
                         }
                         await Task.Delay(10_000); // 10s
                         backupLogsToRestore.Push((currentLogFile, RetryStrategy.None));
+                        continue;
                     }
                     catch (SqlException sqle)
                         when (sqle.Number == 4326)
@@ -278,6 +277,12 @@ namespace SqlBackupTools.Restore.Native
                     catch (SqlException sqle)
                         when (sqle.Number == 4305)
                     {
+                        if (retryMissingTrn-- == 0)
+                        {
+                            throw;
+                        }
+                        await Task.Delay(10_000); // 10s
+
                         //The log in this backup set begins at LSN x, which is too recent to apply to the database. An earlier log backup that includes LSN x can be restored.
 
                         // - retrying the last log with extract from HeaderOnly
@@ -287,8 +292,15 @@ namespace SqlBackupTools.Restore.Native
                             var ex = await DropDatabaseWhileTryingRestore(item, sqlConnection);
                             throw new BackupRestoreException("The log in this backup set begins at LSN x, which is too recent to apply to the database. We're dropping the DB, and will try restore full on next loop.", ex);
                         }
-                        backupLogsToRestore.Push((currentLogFile, RetryStrategy.None));
+
+                        backupLogsToRestore.Clear();
+                        IOrderedEnumerable<FileInfo> logFilesInfo = ListTrnFromDisk(item, lastLogFile.BackupDate());
+                        foreach (var logFileInfo in logFilesInfo)
+                        {
+                            backupLogsToRestore.Push((logFileInfo, RetryStrategy.None));
+                        }
                         backupLogsToRestore.Push((lastLogFile, RetryStrategy.ExtractHeaders));
+                        continue;
                     }
 
                     lastLogFile = currentLogFile;
@@ -308,6 +320,14 @@ namespace SqlBackupTools.Restore.Native
                 _state.Loggger.Debug(e, item.Name + " " + sb);
                 throw;
             }
+        }
+
+        private static IOrderedEnumerable<FileInfo> ListTrnFromDisk(RestoreItem item, DateTime restoreLogsFrom)
+        {
+            return item.Log
+                .EnumerateFiles("*.trn", SearchOption.TopDirectoryOnly)
+                .Where(l => l.BackupDate() > restoreLogsFrom)
+                .OrderByDescending(l => l.BackupDate());
         }
 
         private async Task<string> RestoreFullSqlCommandAsync(RestoreItem item, bool modeFileList,
